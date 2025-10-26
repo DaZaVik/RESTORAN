@@ -1,5 +1,5 @@
 ﻿// Restoran.cs
-// Один файл. Требует .NET 6+ (рекомендуется .NET 8).
+// Один файл, консольное приложение. Требует .NET 6+ (рекомендуется .NET 8).
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 #region Models
+
 class Table
 {
     public int Id { get; set; }
@@ -29,11 +30,11 @@ class Reservation
 
     public bool Overlaps(DateTime s, DateTime e)
     {
-        // Перекрытие [Start, End) и [s, e) - минутная точность (DateTime сравнения)
+        // Перекрытие интервалов [Start,End) и [s,e)
         return Start < e && s < End;
     }
 
-    public bool Covers(DateTime time) => Start <= time && time < End;
+    public bool Covers(DateTime t) => Start <= t && t < End;
 
     public string ToShortString() =>
         $"ID {Id} | КлиентID {ClientId} | Стол {TableId} | {ClientName} ({Phone}) | {Start:yyyy-MM-dd HH:mm} — {End:yyyy-MM-dd HH:mm} | Комментарий: {(string.IsNullOrWhiteSpace(Comment) ? "пусто" : Comment)}";
@@ -72,7 +73,7 @@ class OrderItem
 class Order
 {
     public int Id { get; set; }
-    public int ClientId { get; set; } // привязка заказа к клиенту
+    public int ClientId { get; set; }
     public int TableId { get; set; }
     public List<OrderItem> Items { get; set; } = new();
     public string Comment { get; set; } = "";
@@ -86,6 +87,7 @@ class Order
     public string ToShortString() =>
         $"ID {Id} | КлиентID {ClientId} | Стол {TableId} | Позиции: {Items.Sum(i => i.Quantity)} | Создан: {CreatedAt:yyyy-MM-dd HH:mm} | {(IsClosed ? "Закрыт" : "Открыт")} | Комментарий: {(string.IsNullOrWhiteSpace(Comment) ? "пусто" : Comment)}";
 }
+
 #endregion
 
 class Config
@@ -95,13 +97,12 @@ class Config
 
 class RestoranManager
 {
-    // config.json располагается рядом с исполняемым файлом
     const string CONFIG_FILE = "config.json";
     Config config = new();
 
-    // data path хранит json-файлы
-    string DataPath => string.IsNullOrWhiteSpace(config.DataPath) ? defaultDataPath : config.DataPath;
+    // default data path если не выбран пользователем
     string defaultDataPath = @"C:\Restoran_Data";
+    string DataPath => string.IsNullOrWhiteSpace(config.DataPath) ? defaultDataPath : config.DataPath;
 
     string TablesFile => Path.Combine(DataPath, "tables.json");
     string ReservationsFile => Path.Combine(DataPath, "reservations.json");
@@ -124,7 +125,7 @@ class RestoranManager
     int NextDishId => Dishes.Any() ? Dishes.Max(d => d.Id) + 1 : 1;
     int NextOrderId => Orders.Any() ? Orders.Max(o => o.Id) + 1 : 1;
 
-    // виртуальное "сейчас" — стартово будет установлено при запуске программы
+    // виртуальное "сейчас"
     public DateTime VirtualNow { get; set; } = DateTime.Now;
 
     public RestoranManager()
@@ -134,6 +135,8 @@ class RestoranManager
         LoadAll();
     }
 
+    #region Config & Data folder
+
     void LoadConfig()
     {
         try
@@ -142,13 +145,8 @@ class RestoranManager
             {
                 var json = File.ReadAllText(CONFIG_FILE);
                 config = JsonSerializer.Deserialize<Config>(json) ?? new Config();
-                if (string.IsNullOrWhiteSpace(config.DataPath)) config.DataPath = "";
             }
-            else
-            {
-                // no config yet
-                config = new Config();
-            }
+            else config = new Config();
         }
         catch
         {
@@ -158,41 +156,55 @@ class RestoranManager
 
     void SaveConfig()
     {
-        var json = JsonSerializer.Serialize(config, jsonOptions);
-        File.WriteAllText(CONFIG_FILE, json);
+        try
+        {
+            var json = JsonSerializer.Serialize(config, jsonOptions);
+            File.WriteAllText(CONFIG_FILE, json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Ошибка сохранения config: " + ex.Message);
+        }
     }
 
     void EnsureDataFolderExists()
     {
-        var path = string.IsNullOrWhiteSpace(config.DataPath) ? defaultDataPath : config.DataPath;
-        if (!Directory.Exists(path)) Directory.CreateDirectory(path);
-        // keep config.DataPath as chosen (may be empty)
+        try
+        {
+            if (!Directory.Exists(DataPath)) Directory.CreateDirectory(DataPath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Ошибка при создании папки данных: " + ex.Message);
+        }
     }
 
     public void SetDataPathInteractive()
     {
-        Console.WriteLine($"Текущая папка для хранения данных: {(string.IsNullOrWhiteSpace(config.DataPath) ? defaultDataPath : config.DataPath)}");
+        Console.WriteLine($"Текущая папка для хранения данных: {DataPath}");
         Console.Write("Введите полный путь к папке для хранения данных (Enter = использовать по умолчанию C:\\Restoran_Data): ");
         var input = Console.ReadLine();
         if (string.IsNullOrWhiteSpace(input))
         {
             config.DataPath = defaultDataPath;
         }
-        else
-        {
-            config.DataPath = input.Trim();
-        }
+        else config.DataPath = input.Trim();
+
         try
         {
             if (!Directory.Exists(config.DataPath)) Directory.CreateDirectory(config.DataPath);
             SaveConfig();
-            Console.WriteLine($"Путь сохранён: {config.DataPath}");
+            Console.WriteLine("Путь сохранён: " + DataPath);
         }
         catch (Exception ex)
         {
             Console.WriteLine("Ошибка создания папки: " + ex.Message);
         }
     }
+
+    #endregion
+
+    #region Load/Save
 
     public void LoadAll()
     {
@@ -218,6 +230,7 @@ class RestoranManager
 
     public void SaveAll()
     {
+        EnsureDataFolderExists();
         Save(Tables, TablesFile);
         Save(Reservations, ReservationsFile);
         Save(Dishes, DishesFile);
@@ -237,10 +250,12 @@ class RestoranManager
         }
     }
 
-    // ---------- Test data (only on explicit request) ----------
+    #endregion
+
+    #region Test data
+
     public void InitDefaults()
     {
-        // простая инициализация примеров; вызывается только вручную
         Tables = new List<Table>
         {
             new Table { Id = 1, Location = "у окна", Seats = 4 },
@@ -257,7 +272,6 @@ class RestoranManager
             new Dish { Id = 4, Name = "Чизкейк", Composition="сыр, печенье", Weight="120", Price=350m, Category=DishCategory.Десерт, CookTimeMinutes=30 }
         };
 
-        // примеры бронирований (ClientId произвольные)
         Reservations = new List<Reservation>
         {
             new Reservation { Id = 1, ClientId = 101, ClientName="Макс", Phone="88005553535", Start = DateTime.Today.AddHours(12), End = DateTime.Today.AddHours(15), Comment="День рождения", TableId = 3 },
@@ -271,10 +285,13 @@ class RestoranManager
         };
 
         SaveAll();
-        Console.WriteLine("Тестовые данные созданы и сохранены в текущей папке данных.");
+        Console.WriteLine("Тестовые данные созданы и сохранены в папку данных.");
     }
 
-    // ---------- Tables ----------
+    #endregion
+
+    #region Tables
+
     public void ShowAllTables()
     {
         if (!Tables.Any()) { Console.WriteLine("Нет столов."); return; }
@@ -285,6 +302,7 @@ class RestoranManager
         }
     }
 
+    // короткий график для вывода в списке
     void ShowTableScheduleShort(int tableId, string indent = "")
     {
         var now = VirtualNow;
@@ -293,7 +311,35 @@ class RestoranManager
         foreach (var r in tableRes)
         {
             var activeMark = r.Covers(now) ? " (СЕЙЧАС ЗАНЯТ)" : "";
-            Console.WriteLine($"{indent}{r.Start:yyyy-MM-dd HH:mm} — {r.End:yyyy-MM-dd HH:mm}{activeMark}  | {r.ClientName} ({r.Phone}) | Комментарий: {(string.IsNullOrWhiteSpace(r.Comment) ? "пусто" : r.Comment)}");
+            var clientInfo = r.Covers(now) ? $" | КлиентID: {r.ClientId} ({r.ClientName})" : "";
+            Console.WriteLine($"{indent}{r.Start:yyyy-MM-dd HH:mm} — {r.End:yyyy-MM-dd HH:mm}{activeMark}  | {r.ClientName} ({r.Phone}){clientInfo} | Комментарий: {(string.IsNullOrWhiteSpace(r.Comment) ? "пусто" : r.Comment)}");
+        }
+    }
+
+    public void ShowTableInfoById()
+    {
+        Console.Write("Введите ID стола: ");
+        if (!int.TryParse(Console.ReadLine(), out int id)) { Console.WriteLine("Неверный ID."); return; }
+        ShowTableInfo(id);
+    }
+
+    public void ShowTableInfo(int id)
+    {
+        var t = Tables.FirstOrDefault(x => x.Id == id);
+        if (t == null) { Console.WriteLine("Стол не найден."); return; }
+        Console.WriteLine($"ID: {t.Id}");
+        Console.WriteLine($"Расположение: {t.Location}");
+        Console.WriteLine($"Количество мест: {t.Seats}");
+        Console.WriteLine("Расписание бронирований:");
+        var tableRes = Reservations.Where(r => r.TableId == t.Id).OrderBy(r => r.Start).ToList();
+        if (!tableRes.Any()) Console.WriteLine("  Нет бронирований.");
+        else
+        {
+            foreach (var r in tableRes)
+            {
+                var activeMark = r.Covers(VirtualNow) ? " (СЕЙЧАС ЗАНЯТ)" : "";
+                Console.WriteLine($"  {r.Start:yyyy-MM-dd HH:mm} — {r.End:yyyy-MM-dd HH:mm}{activeMark}  | ID брони {r.Id} | КлиентID {r.ClientId} | {r.ClientName} | Тел: {r.Phone} | Комментарий: {(string.IsNullOrWhiteSpace(r.Comment) ? "пусто" : r.Comment)}");
+            }
         }
     }
 
@@ -364,7 +410,10 @@ class RestoranManager
             Console.WriteLine(t.ToShortString());
     }
 
-    // ---------- Reservations ----------
+    #endregion
+
+    #region Reservations
+
     public void ShowAllReservations()
     {
         if (!Reservations.Any()) { Console.WriteLine("Нет бронирований."); return; }
@@ -502,7 +551,6 @@ class RestoranManager
         Console.WriteLine("Бронь отменена.");
     }
 
-    // Продлить бронь по ID клиента или ID брони
     public void ExtendReservation()
     {
         if (!Reservations.Any()) { Console.WriteLine("Нет бронирований."); return; }
@@ -513,11 +561,9 @@ class RestoranManager
         Reservation r = null;
         if (int.TryParse(s, out int id))
         {
-            // сначала по брони
             r = Reservations.FirstOrDefault(x => x.Id == id);
             if (r == null)
             {
-                // по клиенту — выбрать активную на VirtualNow или последний по времени
                 var byClient = Reservations.Where(x => x.ClientId == id).OrderByDescending(x => x.End).ToList();
                 if (byClient.Any()) r = byClient.First();
             }
@@ -532,7 +578,6 @@ class RestoranManager
         if (newEnd == r.End) { Console.WriteLine("Время не изменено."); return; }
         if (newEnd <= r.Start) { Console.WriteLine("Окончание должно быть позже начала."); return; }
 
-        // Проверка конфликта с другими бронированиями на тот же стол
         var conflicts = Reservations.Where(x => x.TableId == r.TableId && x.Id != r.Id && x.Overlaps(r.Start, newEnd)).ToList();
         if (conflicts.Any())
         {
@@ -541,7 +586,7 @@ class RestoranManager
             return;
         }
 
-        // применяем (разрешено как продление, так и сокращение)
+        // применять (разрешено и продление, и сокращение)
         r.End = newEnd;
         SaveAll();
         Console.WriteLine("Бронь обновлена.");
@@ -560,7 +605,10 @@ class RestoranManager
         foreach (var r in found) Console.WriteLine(r.ToShortString());
     }
 
-    // ---------- Dishes ----------
+    #endregion
+
+    #region Dishes
+
     public void ShowMenu()
     {
         if (!Dishes.Any()) { Console.WriteLine("Нет блюд."); return; }
@@ -640,7 +688,10 @@ class RestoranManager
         Console.WriteLine("Блюдо удалено.");
     }
 
-    // ---------- Orders ----------
+    #endregion
+
+    #region Orders
+
     public void ShowAllOrders()
     {
         if (!Orders.Any()) { Console.WriteLine("Нет заказов."); return; }
@@ -664,7 +715,7 @@ class RestoranManager
         Console.Write("ID клиента (число): ");
         if (!int.TryParse(Console.ReadLine(), out int clientId)) { Console.WriteLine("Неверный ID клиента."); return; }
 
-        // проверить у клиента есть бронь, покрывающая VirtualNow
+        // проверка — есть ли у клиента бронь, покрывающая VirtualNow
         var clientRes = Reservations.FirstOrDefault(r => r.ClientId == clientId && r.Covers(VirtualNow));
         if (clientRes == null)
         {
@@ -780,14 +831,16 @@ class RestoranManager
         Console.WriteLine("Заказ удалён.");
     }
 
-    // ---------- Statistics & checks ----------
+    #endregion
+
+    #region Stats & Client check
+
     public void SumClosedOrders()
     {
         var sum = Orders.Where(o => o.IsClosed).Sum(o => o.Total);
         Console.WriteLine($"Сумма всех закрытых заказов: {sum:0.00} руб.");
     }
 
-    // Пункт 21 — Чек клиента
     public void PrintClientCheck()
     {
         Console.Write("Введите ID клиента: ");
@@ -799,7 +852,8 @@ class RestoranManager
 
         Console.WriteLine($"Имя клиента: {clientName}");
         decimal grandTotal = 0m;
-        // собираем все позиции клиента в одном отчёте, группируем по категориям
+
+        // собираем все позиции
         var allItems = new List<(Dish dish, int qty)>();
         foreach (var o in clientOrders)
         {
@@ -827,20 +881,11 @@ class RestoranManager
             grandTotal += subtotal;
         }
 
-        // учтём позиции с неизвестной категорией/удалённые блюда
         var unknowns = allItems.Where(x => x.dish == null).ToList();
         if (unknowns.Any())
         {
             Console.WriteLine("\nКатегория: Неизвестно (удалённые блюда):");
-            decimal subtotal = 0m;
-            foreach (var u in unknowns)
-            {
-                var qty = u.qty;
-                var lineTotal = 0m;
-                Console.WriteLine($"  Блюдо#{0}  {qty}*0 = 0.00 руб.");
-                subtotal += lineTotal;
-            }
-            Console.WriteLine($"  Под_итог категории: {subtotal:0.00} руб.");
+            Console.WriteLine("  Есть позиции с удалёнными блюдами, которые не учтены в сумме.");
         }
 
         Console.WriteLine($"\nИтог счета: {grandTotal:0.00} руб.");
@@ -862,7 +907,10 @@ class RestoranManager
         }
     }
 
-    // ---------- Save/Load explicit ----------
+    #endregion
+
+    #region Save/Load interactive
+
     public void SaveDataInteractive()
     {
         try
@@ -883,7 +931,53 @@ class RestoranManager
         catch (Exception ex) { Console.WriteLine("Ошибка при загрузке: " + ex.Message); }
     }
 
-    // ---------- Utility ----------
+    #endregion
+
+    #region Clear all data
+
+    public void ClearAllDataInteractive()
+    {
+        Console.Write("Вы уверены, что хотите удалить все данные и JSON-файлы? (y/N): ");
+        var ans = Console.ReadLine();
+        if (ans == null || ans.ToLower() != "y") { Console.WriteLine("Отменено."); return; }
+
+        try
+        {
+            // файлы
+            var files = new[] { TablesFile, ReservationsFile, DishesFile, OrdersFile };
+            foreach (var f in files)
+            {
+                try
+                {
+                    if (File.Exists(f)) File.Delete(f);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Не удалось удалить {Path.GetFileName(f)}: {ex.Message}");
+                }
+            }
+
+            // очистить в памяти
+            Tables.Clear();
+            Reservations.Clear();
+            Dishes.Clear();
+            Orders.Clear();
+
+            // пересоздать пустые файлы (чтобы структура оставалась)
+            SaveAll();
+
+            Console.WriteLine("Все данные удалены.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Ошибка при очистке данных: " + ex.Message);
+        }
+    }
+
+    #endregion
+
+    #region Virtual now utils
+
     public void ShowNow() => Console.WriteLine($"Текущее виртуальное время: {VirtualNow:yyyy-MM-dd HH:mm}");
     public void SetVirtualNowInteractive()
     {
@@ -894,6 +988,8 @@ class RestoranManager
         else VirtualNow = t;
         Console.WriteLine($"Сейчас: {VirtualNow:yyyy-MM-dd HH:mm}");
     }
+
+    #endregion
 }
 
 class Program
@@ -953,6 +1049,7 @@ class Program
             Console.WriteLine("25. Сохранить данные (в текущую папку)");
             Console.WriteLine("26. Загрузить данные (из текущей папки)");
             Console.WriteLine("27. Показать/изменить текущее виртуальное время");
+            Console.WriteLine("28. Очистить все данные");
             Console.WriteLine("30. Создать тестовые данные (инициализация по выбору)");
             Console.WriteLine("0. Выход");
 
@@ -967,10 +1064,7 @@ class Program
                     case "2": mgr.AddTable(); break;
                     case "3": mgr.EditTable(); break;
                     case "4": mgr.DeleteTable(); break;
-                    case "5":
-                        Console.Write("Введите ID стола: ");
-                        if (int.TryParse(Console.ReadLine(), out int tid)) mgr.ShowAllTables(); // ShowAllTables уже показывает расписание
-                        break;
+                    case "5": mgr.ShowTableInfoById(); break;
                     case "6": mgr.ShowAllReservations(); break;
                     case "7": mgr.AddReservation(); break;
                     case "8": mgr.EditReservation(); break;
@@ -993,6 +1087,7 @@ class Program
                     case "25": mgr.SaveDataInteractive(); break;
                     case "26": mgr.LoadDataInteractive(); break;
                     case "27": mgr.SetVirtualNowInteractive(); break;
+                    case "28": mgr.ClearAllDataInteractive(); break;
                     case "30":
                         Console.Write("Вы уверены, что хотите создать тестовые данные (да/нет)? ");
                         var ans = Console.ReadLine();
