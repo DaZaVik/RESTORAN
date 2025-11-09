@@ -1,19 +1,14 @@
-﻿// Program.cs
-// Restoran — консольное приложение (один файл)
-
-// Требует .NET 6+ (рекомендуется .NET 8)
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-/// <summary>
-/// Класс Table — описывает стол в ресторане.
-/// Свойства полностью инициализированы, чтобы не было предупреждений компилятора.
-/// </summary>
+/*
+Класс Table — описывает стол в ресторане.
+Свойства полностью инициализированы, чтобы не было предупреждений компилятора.
+*/
 class Table
 {
     public int Id { get; set; } = 0;
@@ -24,11 +19,11 @@ class Table
     public string ToShortString() => $"ID {Id} | {Location} | Мест: {Seats}";
 }
 
-/// <summary>
-/// Класс Reservation — описание брони.
-/// Хранит ClientId, имя, телефон, интервал брони, комментарий и назначенный стол.
-/// Методы проверки перекрытия/покрытия используются в логике менеджера.
-/// </summary>
+/*
+Класс Reservation — описание брони.
+Хранит ClientId, имя, телефон, интервал брони, комментарий и назначенный стол.
+Методы проверки перекрытия/покрытия используются в логике менеджера.
+*/
 class Reservation
 {
     public int Id { get; set; } = 0;
@@ -40,25 +35,25 @@ class Reservation
     public string Comment { get; set; } = string.Empty;
     public int TableId { get; set; } = 0;
 
-    /// <summary>
-    /// Проверка перекрытия двух интервалов [Start, End) и [s, e).
-    /// Точная до минут (DateTime сравнение).
-    /// Возвращает true если перекрываются.
-    /// </summary>
+    /*
+    Проверка перекрытия двух интервалов [Start, End) и [s, e).
+    Точная до минут (DateTime сравнение).
+    Возвращает true если перекрываются.
+    */
     public bool Overlaps(DateTime s, DateTime e)
     {
         return Start < e && s < End;
     }
 
-    /// <summary>
-    /// Проверяет покрывает ли интервал текущее время t (Start <= t &lt; End).
-    /// </summary>
+    /*
+    Проверяет покрывает ли интервал текущее время t (Start <= t &lt; End).
+    */
     public bool Covers(DateTime t) => Start <= t && t < End;
 
-    /// <summary>
-    /// Краткий формат для вывода брони.
-    /// Комментарий заменяется на "пусто", если пустая строка.
-    /// </summary>
+    /*
+    Краткий формат для вывода брони.
+    Комментарий заменяется на "пусто", если пустая строка.
+    */
     public string ToShortString()
     {
         var comment = string.IsNullOrWhiteSpace(Comment) ? "пусто" : Comment;
@@ -66,10 +61,10 @@ class Reservation
     }
 }
 
-/// <summary>
-/// Перечисление категорий блюд.
-/// Сериализуется в JSON строкой благодаря JsonStringEnumConverter.
-/// </summary>
+/*
+Перечисление категорий блюд.
+Сериализуется в JSON строкой благодаря JsonStringEnumConverter.
+*/
 enum DishCategory
 {
     Напитки,
@@ -82,10 +77,10 @@ enum DishCategory
     Другое
 }
 
-/// <summary>
-/// Класс Dish — блюдо меню.
-/// Удалены теги по требованию; все поля инициализированы.
-/// </summary>
+/*
+Класс Dish — блюдо меню.
+Удалены теги по требованию; все поля инициализированы.
+*/
 class Dish
 {
     public int Id { get; set; } = 0;
@@ -99,20 +94,20 @@ class Dish
     public string ToShortString() => $"ID {Id} | {Name} | {Category} | {Price:0.00} руб.";
 }
 
-/// <summary>
-/// Элемент заказа: ссылка на DishId и количество.
-/// </summary>
+/*
+Элемент заказа: ссылка на DishId и количество.
+*/
 class OrderItem
 {
     public int DishId { get; set; } = 0;
     public int Quantity { get; set; } = 0;
 }
 
-/// <summary>
-/// Класс Order — заказ, привязанный к ClientId и столу.
-/// Может быть открыт или закрыт (ClosedAt != null).
-/// Total вычисляется при закрытии.
-/// </summary>
+/*
+Класс Order — заказ, привязанный к ClientId и столу.
+Может быть открыт или закрыт (ClosedAt != null).
+Total вычисляется при закрытии.
+*/
 class Order
 {
     public int Id { get; set; } = 0;
@@ -134,21 +129,21 @@ class Order
     }
 }
 
-/// <summary>
-/// Класс Config хранит путь к папке данных.
-/// Сохраняется в config.json рядом с исполняемым файлом.
-/// </summary>
+/*
+Класс Config хранит путь к папке данных.
+Сохраняется в config.json рядом с исполняемым файлом.
+*/
 class Config
 {
     public string DataPath { get; set; } = string.Empty;
 }
 
-/// <summary>
-/// RestoranManager — основной менеджер приложения.
-/// Хранит списки таблиц/бронирований/блюд/заказов, читает/пишет JSON,
-/// реализует логику добавления/редактирования/удаления, проверки конфликтов и статистики.
-/// Включает виртуальное время VirtualNow, используемое в логике (можно менять).
-/// </summary>
+/*
+RestoranManager — основной менеджер приложения.
+Хранит списки таблиц/бронирований/блюд/заказов, читает/пишет JSON,
+реализует логику добавления/редактирования/удаления, проверки конфликтов и статистики.
+Включает виртуальное время VirtualNow, используемое в логике (можно менять).
+*/
 class RestoranManager
 {
     // config.json хранится рядом с исполняемым файлом
@@ -187,9 +182,9 @@ class RestoranManager
     // Виртуальное "сейчас" — используется для логики (можно менять пользователем)
     public DateTime VirtualNow { get; set; } = DateTime.Now;
 
-    /// <summary>
-    /// Конструктор менеджера: загружает конфиг, создаёт папку данных (если нужно) и загружает данные.
-    /// </summary>
+    /*
+    Конструктор менеджера: загружает конфиг, создаёт папку данных (если нужно) и загружает данные.
+    */
     public RestoranManager()
     {
         LoadConfig();
@@ -199,9 +194,9 @@ class RestoranManager
 
     #region Config & Data folder
 
-    /// <summary>
-    /// Загружает config.json (если есть). В противном случае оставляет дефолтную конфигурацию.
-    /// </summary>
+    /*
+    Загружает config.json (если есть). В противном случае оставляет дефолтную конфигурацию.
+    */
     private void LoadConfig()
     {
         try
@@ -224,9 +219,9 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Сохраняет config.json рядом с исполняемым файлом.
-    /// </summary>
+    /*
+    Сохраняет config.json рядом с исполняемым файлом.
+    */
     private void SaveConfig()
     {
         try
@@ -240,9 +235,9 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Создаёт папку данных, если её нет.
-    /// </summary>
+    /*
+    Создаёт папку данных, если её нет.
+    */
     private void EnsureDataFolderExists()
     {
         try
@@ -256,11 +251,11 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Интерактивный выбор папки данных.
-    /// Спрашивает новый путь, предлагает перенести данные туда,
-    /// и предлагает удалить старые файлы после копирования (оба варианта реализованы).
-    /// </summary>
+    /*
+    Интерактивный выбор папки данных.
+    Спрашивает новый путь, предлагает перенести данные туда,
+    и предлагает удалить старые файлы после копирования (оба варианта реализованы).
+    */
     public void SetDataPathInteractive()
     {
         Console.WriteLine($"Текущая папка для хранения данных: {DataPath}");
@@ -355,10 +350,10 @@ class RestoranManager
 
     #region Load/Save
 
-    /// <summary>
-    /// Загружает все коллекции из JSON-файлов (если файлы существуют).
-    /// Если файла нет — коллекция остаётся пустой.
-    /// </summary>
+    /*
+    Загружает все коллекции из JSON-файлов (если файлы существуют).
+    Если файла нет — коллекция остаётся пустой.
+    */
     public void LoadAll()
     {
         Tables = LoadOrCreate<Table>(TablesFile);
@@ -367,10 +362,10 @@ class RestoranManager
         Orders = LoadOrCreate<Order>(OrdersFile);
     }
 
-    /// <summary>
-    /// Универсальная загрузка списка T из файла path.
-    /// Возвращает пустой список при любой ошибке.
-    /// </summary>
+    /*
+    Универсальная загрузка списка T из файла path.
+    Возвращает пустой список при любой ошибке.
+    */
     private List<T> LoadOrCreate<T>(string path)
     {
         try
@@ -387,9 +382,9 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Сохраняет все коллекции в JSON-файлы в папке DataPath.
-    /// </summary>
+    /*
+    Сохраняет все коллекции в JSON-файлы в папке DataPath.
+    */
     public void SaveAll()
     {
         EnsureDataFolderExists();
@@ -399,10 +394,10 @@ class RestoranManager
         Save(Orders, OrdersFile);
     }
 
-    /// <summary>
-    /// Универсальная сохранение списка T в путь path.
-    /// Оборачиваем в try/catch — в случае ошибки сообщаем пользователю.
-    /// </summary>
+    /*
+    Универсальная сохранение списка T в путь path.
+    Оборачиваем в try/catch — в случае ошибки сообщаем пользователю.
+    */
     private void Save<T>(List<T> list, string path)
     {
         try
@@ -420,10 +415,10 @@ class RestoranManager
 
     #region Test data (инициализация только по выбору пользователя)
 
-    /// <summary>
-    /// Создаёт тестовые данные — вызывается только вручную через пункт меню.
-    /// Данные сохраняются в текущую папку данных.
-    /// </summary>
+    /*
+    Создаёт тестовые данные — вызывается только вручную через пункт меню.
+    Данные сохраняются в текущую папку данных.
+    */
     public void InitDefaults()
     {
         Tables = new List<Table>
@@ -482,11 +477,11 @@ class RestoranManager
 
     #region Tables (столы)
 
-    /// <summary>
-    /// Показывает список всех столов.
-    /// Для каждого стола также выводится расписание броней; если бронь активна сейчас,
-    /// рядом будет ID клиента и имя.
-    /// </summary>
+    /*
+    Показывает список всех столов.
+    Для каждого стола также выводится расписание броней; если бронь активна сейчас,
+    рядом будет ID клиента и имя.
+    */
     public void ShowAllTables()
     {
         if (!Tables.Any())
@@ -502,10 +497,10 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Короткий вывод расписания столов — используется в ShowAllTables.
-    /// Для активных броней (по VirtualNow) выводит также ID клиента.
-    /// </summary>
+    /*
+    Короткий вывод расписания столов — используется в ShowAllTables.
+    Для активных броней (по VirtualNow) выводит также ID клиента.
+    */
     private void ShowTableScheduleShort(int tableId, string indent = "")
     {
         var now = VirtualNow;
@@ -525,10 +520,10 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Запрашивает ID стола и показывает подробную информацию только по выбранному столу.
-    /// Если ID не найден — сообщает об этом.
-    /// </summary>
+    /*
+    Запрашивает ID стола и показывает подробную информацию только по выбранному столу.
+    Если ID не найден — сообщает об этом.
+    */
     public void ShowTableInfoByIdInteractive()
     {
         Console.Write("Введите ID стола: ");
@@ -541,10 +536,10 @@ class RestoranManager
         ShowTableInfo(id);
     }
 
-    /// <summary>
-    /// Показ информации о столе по ID: расположение, места и расписание.
-    /// Показывает ID брони и ID клиента для каждой брони.
-    /// </summary>
+    /*
+    Показ информации о столе по ID: расположение, места и расписание.
+    Показывает ID брони и ID клиента для каждой брони.
+    */
     public void ShowTableInfo(int id)
     {
         var t = Tables.FirstOrDefault(x => x.Id == id);
@@ -574,9 +569,9 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Добавляет стол: запрашивает расположение и количество мест.
-    /// </summary>
+    /*
+    Добавляет стол: запрашивает расположение и количество мест.
+    */
     public void AddTable()
     {
         var t = new Table { Id = NextTableId };
@@ -591,9 +586,9 @@ class RestoranManager
         Console.WriteLine($"Добавлен стол ID {t.Id}");
     }
 
-    /// <summary>
-    /// Редактирование стола по ID. Нельзя редактировать если сейчас по столу есть активная бронь.
-    /// </summary>
+    /*
+    Редактирование стола по ID. Нельзя редактировать если сейчас по столу есть активная бронь.
+    */
     public void EditTable()
     {
         if (!Tables.Any())
@@ -632,9 +627,9 @@ class RestoranManager
         Console.WriteLine("Стол обновлён.");
     }
 
-    /// <summary>
-    /// Удаление стола с проверкой на наличие броней.
-    /// </summary>
+    /*
+    Удаление стола с проверкой на наличие броней.
+    */
     public void DeleteTable()
     {
         if (!Tables.Any())
@@ -665,9 +660,9 @@ class RestoranManager
         Console.WriteLine("Стол удалён.");
     }
 
-    /// <summary>
-    /// Печатает кратко список столов (ID/расположение/места).
-    /// </summary>
+    /*
+    Печатает кратко список столов (ID/расположение/места).
+    */
     private void PrintTablesShort()
     {
         foreach (var t in Tables.OrderBy(t => t.Id))
@@ -678,9 +673,9 @@ class RestoranManager
 
     #region Reservations (бронирования)
 
-    /// <summary>
-    /// Выводит все бронирования с комментариями. Если комментарий пуст, выводит "пусто".
-    /// </summary>
+    /*
+    Выводит все бронирования с комментариями. Если комментарий пуст, выводит "пусто".
+    */
     public void ShowAllReservations()
     {
         if (!Reservations.Any())
@@ -694,11 +689,11 @@ class RestoranManager
             Console.WriteLine(r.ToShortString());
         }
     }
-
-    /// <summary>
-    /// Добавляет бронь: запрос столa, ID клиента, имя, телефон, время начала и окончания, комментарий.
-    /// Проверка пересечений по минутам — не допускается перекрытие.
-    /// </summary>
+    /*
+     Добавляет бронь: запрос столa, ID клиента, имя, телефон, время начала и окончания, комментарий.
+     Проверка пересечений по минутам — не допускается перекрытие.
+     Проверка уникальности ClientId — один и тот же ClientId не может быть у разных клиентов.
+    */
     public void AddReservation()
     {
         if (!Tables.Any())
@@ -706,7 +701,6 @@ class RestoranManager
             Console.WriteLine("Нет столов — создайте стол сначала.");
             return;
         }
-
         Console.WriteLine("Создание брони. Сначала выберите стол из списка:");
         PrintTablesShort();
         Console.Write("ID стола: ");
@@ -718,11 +712,17 @@ class RestoranManager
         var sClient = Console.ReadLine() ?? string.Empty;
         if (!int.TryParse(sClient, out int clientId)) { Console.WriteLine("Неверный ID клиента."); return; }
 
+        // Проверка уникальности ClientId
+        if (Reservations.Any(r => r.ClientId == clientId))
+        {
+            Console.WriteLine($"Ошибка: ClientId {clientId} уже используется другим клиентом. Выберите другой ID.");
+            return;
+        }
+
         Console.Write("Имя клиента: ");
         var name = Console.ReadLine() ?? string.Empty;
         Console.Write("Телефон: ");
         var phone = Console.ReadLine() ?? string.Empty;
-
         Console.Write("Время начала (yyyy-MM-dd HH:mm): ");
         var sStart = Console.ReadLine() ?? string.Empty;
         if (!DateTime.TryParse(sStart, out DateTime start)) { Console.WriteLine("Неверная дата."); return; }
@@ -736,7 +736,7 @@ class RestoranManager
         if (conflicts.Any())
         {
             Console.WriteLine("Стол занят в это время. Существующие брони:");
-            foreach (var c in conflicts) Console.WriteLine("  " + c.ToShortString());
+            foreach (var c in conflicts) Console.WriteLine(" " + c.ToShortString());
             return;
         }
 
@@ -750,19 +750,17 @@ class RestoranManager
             End = end,
             TableId = tableId
         };
-
         Console.Write("Комментарий (опционально): ");
         res.Comment = Console.ReadLine() ?? string.Empty;
-
         Reservations.Add(res);
         SaveAll();
         Console.WriteLine($"Бронь добавлена. ID {res.Id}");
     }
 
-    /// <summary>
-    /// Редактирование брони по её ID. Позволяет менять имя, телефон, начало, конец, стол, комментарий.
-    /// При изменении интервала/стола проверяет конфликты с другими бронями.
-    /// </summary>
+    /*
+    Редактирование брони по её ID. Позволяет менять имя, телефон, начало, конец, стол, комментарий.
+    При изменении интервала/стола проверяет конфликты с другими бронями.
+    */
     public void EditReservation()
     {
         if (!Reservations.Any())
@@ -831,9 +829,9 @@ class RestoranManager
         Console.WriteLine("Бронь обновлена.");
     }
 
-    /// <summary>
-    /// Отмена (удаление) брони по ID.
-    /// </summary>
+    /*
+    Отмена (удаление) брони по ID.
+    */
     public void CancelReservation()
     {
         if (!Reservations.Any())
@@ -853,10 +851,10 @@ class RestoranManager
         Console.WriteLine("Бронь отменена.");
     }
 
-    /// <summary>
-    /// Продление/сокращение брони. Пользователь вводит ID брони или ID клиента.
-    /// Запрашивает новое время окончания; при конфликте изменений отклоняется.
-    /// </summary>
+    /*
+    Продление/сокращение брони. Пользователь вводит ID брони или ID клиента.
+    Запрашивает новое время окончания; при конфликте изменений отклоняется.
+    */
     public void ExtendReservation()
     {
         if (!Reservations.Any())
@@ -910,10 +908,10 @@ class RestoranManager
         Console.WriteLine("Бронь обновлена.");
     }
 
-    /// <summary>
-    /// Поиск брони по последним 4 цифрам телефона или по имени клиента.
-    /// Результат выводится (включая комментарий).
-    /// </summary>
+    /*
+    Поиск брони по последним 4 цифрам телефона или по имени клиента.
+    Результат выводится (включая комментарий).
+    */
     public void FindReservationByPhoneOrName()
     {
         Console.Write("Введите последние 4 цифры номера телефона или имя клиента: ");
@@ -933,10 +931,10 @@ class RestoranManager
 
     #region Dishes (блюда)
 
-    /// <summary>
-    /// Вывод меню — блюда группируются по категориям.
-    /// Полная информация о блюде выводится в строке.
-    /// </summary>
+    /*
+    Вывод меню — блюда группируются по категориям.
+    Полная информация о блюде выводится в строке.
+    */
     public void ShowMenu()
     {
         if (!Dishes.Any()) { Console.WriteLine("Нет блюд."); return; }
@@ -949,9 +947,9 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Добавление блюда (запрос полей).
-    /// </summary>
+    /*
+    Добавление блюда (запрос полей).
+    */
     public void AddDish()
     {
         var d = new Dish { Id = NextDishId };
@@ -979,9 +977,9 @@ class RestoranManager
         Console.WriteLine($"Блюдо добавлено ID {d.Id}");
     }
 
-    /// <summary>
-    /// Редактирование блюда по ID.
-    /// </summary>
+    /*
+    Редактирование блюда по ID.
+    */
     public void EditDish()
     {
         if (!Dishes.Any()) { Console.WriteLine("Нет блюд."); return; }
@@ -1016,9 +1014,9 @@ class RestoranManager
         Console.WriteLine("Блюдо обновлено.");
     }
 
-    /// <summary>
-    /// Удаление блюда с предупреждением, если блюдо используется в заказах.
-    /// </summary>
+    /*
+    Удаление блюда с предупреждением, если блюдо используется в заказах.
+    */
     public void DeleteDish()
     {
         if (!Dishes.Any()) { Console.WriteLine("Нет блюд."); return; }
@@ -1046,10 +1044,10 @@ class RestoranManager
 
     #region Orders (заказы)
 
-    /// <summary>
-    /// Показ всех заказов; для каждой позиции выводится название блюда и сумма.
-    /// Комментарий выводится (если пуст — "пусто").
-    /// </summary>
+    /*
+    Показ всех заказов; для каждой позиции выводится название блюда и сумма.
+    Комментарий выводится (если пуст — "пусто").
+    */
     public void ShowAllOrders()
     {
         if (!Orders.Any()) { Console.WriteLine("Нет заказов."); return; }
@@ -1066,10 +1064,10 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Создание заказа: запрашивает ID клиента (заказ привязан к клиенту).
-    /// Разрешается только если у клиента есть бронь, покрывающая VirtualNow.
-    /// </summary>
+    /*
+    Создание заказа: запрашивает ID клиента (заказ привязан к клиенту).
+    Разрешается только если у клиента есть бронь, покрывающая VirtualNow.
+    */
     public void CreateOrder()
     {
         if (!Tables.Any()) { Console.WriteLine("Нет столов."); return; }
@@ -1116,10 +1114,10 @@ class RestoranManager
         Console.WriteLine($"Заказ создан ID {order.Id}");
     }
 
-    /// <summary>
-    /// Редактирование заказа: добавить/удалить позицию, изменить количество.
-    /// Нельзя редактировать закрытый заказ.
-    /// </summary>
+    /*
+    Редактирование заказа: добавить/удалить позицию, изменить количество.
+    Нельзя редактировать закрытый заказ.
+    */
     public void EditOrder()
     {
         if (!Orders.Any()) { Console.WriteLine("Нет заказов."); return; }
@@ -1172,9 +1170,9 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Закрытие заказа: вычисление суммы Total и установка ClosedAt = VirtualNow.
-    /// </summary>
+    /*
+    Закрытие заказа: вычисление суммы Total и установка ClosedAt = VirtualNow.
+    */
     public void CloseOrder()
     {
         if (!Orders.Any()) { Console.WriteLine("Нет заказов."); return; }
@@ -1198,9 +1196,9 @@ class RestoranManager
         Console.WriteLine($"Заказ закрыт. Итог: {total:0.00} руб.");
     }
 
-    /// <summary>
-    /// Удаление заказа по ID.
-    /// </summary>
+    /*
+    Удаление заказа по ID.
+    */
     public void DeleteOrder()
     {
         if (!Orders.Any()) { Console.WriteLine("Нет заказов."); return; }
@@ -1219,19 +1217,19 @@ class RestoranManager
 
     #region Stats & Client check
 
-    /// <summary>
-    /// Сумма всех закрытых заказов.
-    /// </summary>
+    /*
+    Сумма всех закрытых заказов.
+    */
     public void SumClosedOrders()
     {
         var sum = Orders.Where(o => o.IsClosed).Sum(o => o.Total);
         Console.WriteLine($"Сумма всех закрытых заказов: {sum:0.00} руб.");
     }
 
-    /// <summary>
-    /// Печать "чека клиента" — группировка по категориям с подитогами и итогом.
-    /// Ищет все заказы клиента по ClientId.
-    /// </summary>
+    /*
+    Печать "чека клиента" — группировка по категориям с подитогами и итогом.
+    Ищет все заказы клиента по ClientId.
+    */
     public void PrintClientCheck()
     {
         Console.Write("Введите ID клиента: ");
@@ -1283,9 +1281,9 @@ class RestoranManager
         Console.WriteLine($"\nИтог счета: {grandTotal:0.00} руб.");
     }
 
-    /// <summary>
-    /// Статистика по количеству заказанных блюд (всех времени).
-    /// </summary>
+    /*
+    Статистика по количеству заказанных блюд (всех времени).
+    */
     public void StatsDishCounts()
     {
         var counts = new Dictionary<int, int>();
@@ -1310,9 +1308,9 @@ class RestoranManager
 
     #region Save/Load interactive
 
-    /// <summary>
-    /// Явное сохранение данных (вызывается из меню).
-    /// </summary>
+    /*
+    Явное сохранение данных (вызывается из меню).
+    */
     public void SaveDataInteractive()
     {
         try
@@ -1326,9 +1324,9 @@ class RestoranManager
         }
     }
 
-    /// <summary>
-    /// Явная загрузка данных (вызывается из меню).
-    /// </summary>
+    /*
+    Явная загрузка данных (вызывается из меню).
+    */
     public void LoadDataInteractive()
     {
         try
@@ -1346,11 +1344,11 @@ class RestoranManager
 
     #region Clear all data
 
-    /// <summary>
-    /// Очистка всех данных (удаление JSON-файлов и очищение списков).
-    /// Спрашивает подтверждение, затем удаляет файлы и пересоздаёт пустые.
-    /// Программа остаётся в меню после операции.
-    /// </summary>
+    /*
+    Очистка всех данных (удаление JSON-файлов и очищение списков).
+    Спрашивает подтверждение, затем удаляет файлы и пересоздаёт пустые.
+    Программа остаётся в меню после операции.
+    */
     public void ClearAllDataInteractive()
     {
         Console.Write("Вы уверены, что хотите удалить все данные и JSON-файлы? (да/нет): ");
@@ -1396,15 +1394,15 @@ class RestoranManager
 
     #region Virtual Now utilities
 
-    /// <summary>
-    /// Вывод текущего виртуального времени.
-    /// </summary>
+    /*
+    Вывод текущего виртуального времени.
+    */
     public void ShowNow() => Console.WriteLine($"Текущее виртуальное время: {VirtualNow:yyyy-MM-dd HH:mm}");
 
-    /// <summary>
-    /// Установка виртуального времени интерактивно.
-    /// Если нажали Enter — берётся системное текущее время.
-    /// </summary>
+    /*
+    Установка виртуального времени интерактивно.
+    Если нажали Enter — берётся системное текущее время.
+    */
     public void SetVirtualNowInteractive()
     {
         Console.Write("Укажите новое текущее время (yyyy-MM-dd HH:mm) или Enter чтобы использовать системное текущее время: ");
@@ -1426,10 +1424,10 @@ class RestoranManager
 
     #region Utilities
 
-    /// <summary>
-    /// Универсальное чтение да/нет из консоли. 
-    /// Возвращает true для 'да' (регистр не важен), false для 'нет' или пустой строки.
-    /// </summary>
+    /*
+    Универсальное чтение да/нет из консоли. 
+    Возвращает true для 'да' (регистр не важен), false для 'нет' или пустой строки.
+    */
     public static bool ReadYesNo()
     {
         var s = Console.ReadLine() ?? string.Empty;
@@ -1441,10 +1439,10 @@ class RestoranManager
     #endregion
 }
 
-/// <summary>
-/// Главный класс программы Program с методом Main.
-/// Содержит меню и обработку команд, вызывает методы RestoranManager.
-/// </summary>
+/*
+Главный класс программы Program с методом Main.
+Содержит меню и обработку команд, вызывает методы RestoranManager.
+*/
 class Program
 {
     static void Main()
